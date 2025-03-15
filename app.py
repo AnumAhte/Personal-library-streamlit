@@ -1,116 +1,107 @@
-import streamlit as st
 import json
 import os
 import requests
+import streamlit as st
 
-# File for storing books
-LIBRARY_FILE = "library.json"
-
-# Function to fetch book summary
-@st.cache_data
-def get_book_summary(title):
-    """Fetch a book summary from Google Books API."""
-    url = f"https://www.googleapis.com/books/v1/volumes?q=intitle:{title}"
-    
-    try:
-        response = requests.get(url, timeout=10)
-        data = response.json()
-
-        if response.status_code == 200 and "items" in data:
-            return data["items"][0]["volumeInfo"].get("description", "No summary available.")
-        else:
-            return "❌ No summary found for this book."
-    
-    except Exception as e:
-        return f"⚠️ Error fetching summary: {str(e)}"
-
-# Function to load library from file
-def load_library():
-    """Load the library from a file."""
-    if os.path.exists(LIBRARY_FILE) and os.path.getsize(LIBRARY_FILE) > 0:
-        with open(LIBRARY_FILE, "r") as file:
+# 📌 Load Library from File
+def load_library(filename="library.txt"):
+    """Library ko file se load karega. Agar file exist nahi karti to empty list return karega."""
+    if os.path.exists(filename) and os.path.getsize(filename) > 0:
+        with open(filename, "r") as file:
             return json.load(file)
     return []
 
-# Function to save library to file
-def save_library(library):
-    """Save the library to a file."""
-    with open(LIBRARY_FILE, "w") as file:
+# 📌 Save Library to File
+def save_library(library, filename="library.txt"):
+    """Library ko JSON format mein save karega taake wapas load kar sakein."""
+    with open(filename, "w") as file:
         json.dump(library, file, indent=4)
 
-# Initialize library
+# 📌 Fetch Book Summary from Google Books API
+def get_book_summary(title):
+    """Fetch a book summary using Google Books API."""
+    url = f"https://www.googleapis.com/books/v1/volumes?q=intitle:{title}"
+    try:
+        response = requests.get(url)
+        data = response.json()
+        if "items" in data and len(data["items"]) > 0:
+            return data["items"][0]["volumeInfo"].get("description", "No summary available.")
+        else:
+            return "❌ No summary found for this book."
+    except Exception as e:
+        return f"❌ API Error: {str(e)}"
+
+# ✅ Streamlit UI
+st.title("📚 Personal Library Manager")
+
+# 📌 Load Library on App Start
 library = load_library()
 
-# Streamlit UI
-st.title("📚 Personal Library Manager")
-st.sidebar.header("📖 Menu")
+# 📌 Sidebar Navigation
+menu = st.sidebar.selectbox("Select an Option", ["📖 Add Book", "❌ Remove Book", "🔍 Search Book", "📚 Display Books", "📊 Statistics", "📜 Get Book Summary"])
 
-menu_option = st.sidebar.radio("Select an option:", ["Add Book", "Remove Book", "Search Book", "Display Books", "Statistics", "Book Summary"])
+# 📌 Add Book
+if menu == "📖 Add Book":
+    st.subheader("➕ Add a New Book")
+    title = st.text_input("Enter Book Title")
+    author = st.text_input("Enter Author Name")
+    year = st.number_input("Enter Publication Year", min_value=1000, max_value=2100, step=1)
+    genre = st.text_input("Enter Genre")
+    read_status = st.radio("Have you read this book?", ["Yes", "No"]) == "Yes"
 
-# Add Book
-if menu_option == "Add Book":
-    st.header("➕ Add a New Book")
-    title = st.text_input("Enter Book Title:")
-    author = st.text_input("Enter Author:")
-    year = st.number_input("Enter Publication Year:", min_value=0, step=1)
-    genre = st.text_input("Enter Genre:")
-    read_status = st.checkbox("Have you read this book?")
-    
     if st.button("Add Book"):
         library.append({"title": title, "author": author, "year": year, "genre": genre, "read": read_status})
         save_library(library)
-        st.success("✅ Book added successfully!")
+        st.success(f"✅ '{title}' added successfully!")
 
-# Remove Book
-elif menu_option == "Remove Book":
-    st.header("🗑 Remove a Book")
-    book_titles = [book["title"] for book in library]
-    book_to_remove = st.selectbox("Select a book to remove:", book_titles)
-    
-    if st.button("Remove Book"):
-        library = [book for book in library if book["title"] != book_to_remove]
-        save_library(library)
-        st.success("✅ Book removed successfully!")
+# 📌 Remove Book
+elif menu == "❌ Remove Book":
+    st.subheader("🗑 Remove a Book")
+    if library:
+        titles = [book["title"] for book in library]
+        book_to_remove = st.selectbox("Select a Book to Remove", titles)
+        if st.button("Remove Book"):
+            library = [book for book in library if book["title"] != book_to_remove]
+            save_library(library)
+            st.success(f"✅ '{book_to_remove}' removed successfully!")
+    else:
+        st.warning("⚠ No books available to remove!")
 
-# Search Book
-elif menu_option == "Search Book":
-    st.header("🔍 Search for a Book")
-    search_query = st.text_input("Enter book title or author:")
-    
+# 📌 Search Book
+elif menu == "🔍 Search Book":
+    st.subheader("🔎 Search for a Book")
+    search_query = st.text_input("Enter Book Title or Author")
     if st.button("Search"):
         results = [book for book in library if search_query.lower() in book["title"].lower() or search_query.lower() in book["author"].lower()]
-        
         if results:
             for book in results:
                 st.write(f"📖 **{book['title']}** by {book['author']} ({book['year']}) - {book['genre']} - {'✅ Read' if book['read'] else '❌ Unread'}")
         else:
-            st.warning("⚠️ No matching books found.")
+            st.warning("⚠ No matching books found!")
 
-# Display Books
-elif menu_option == "Display Books":
-    st.header("📚 Your Library")
-    
+# 📌 Display Books
+elif menu == "📚 Display Books":
+    st.subheader("📂 Your Library Collection")
     if library:
         for book in library:
             st.write(f"📖 **{book['title']}** by {book['author']} ({book['year']}) - {book['genre']} - {'✅ Read' if book['read'] else '❌ Unread'}")
     else:
-        st.warning("⚠️ No books in the library.")
+        st.warning("⚠ No books in your library!")
 
-# Statistics
-elif menu_option == "Statistics":
-    st.header("📊 Library Statistics")
+# 📌 Display Statistics
+elif menu == "📊 Statistics":
+    st.subheader("📊 Library Statistics")
     total_books = len(library)
     read_books = sum(1 for book in library if book["read"])
-    
-    st.write(f"📚 **Total Books:** {total_books}")
-    st.write(f"📖 **Books Read:** {read_books} ({(read_books / total_books * 100) if total_books > 0 else 0:.2f}%)")
+    percentage_read = (read_books / total_books) * 100 if total_books > 0 else 0
+    st.write(f"📚 Total Books: **{total_books}**")
+    st.write(f"✅ Books Read: **{read_books}**")
+    st.write(f"📈 Percentage Read: **{percentage_read:.2f}%**")
 
-# Book Summary
-elif menu_option == "Book Summary":
-    st.header("📖 Get Book Summary")
-    book_title = st.text_input("Enter Book Title for Summary:")
-    
+# 📌 Get Book Summary
+elif menu == "📜 Get Book Summary":
+    st.subheader("📖 Get Book Summary")
+    book_title = st.text_input("Enter Book Title")
     if st.button("Get Summary"):
         summary = get_book_summary(book_title)
-        st.write(f"📖 **Summary:** {summary}")
-
+        st.info(summary)
