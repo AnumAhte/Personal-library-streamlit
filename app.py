@@ -18,6 +18,7 @@ def save_library(library, filename="library.txt"):
         json.dump(library, file, indent=4)
 
 # 📌 Fetch Book Summary from Google Books API
+API_KEY ="AIzaSyBSnslPjnoz-Yd0kiNpmPP4CrP_WsqdeU0"
 def get_book_summary(title):
     """Fetch a book summary using Google Books API."""
     url = f"https://www.googleapis.com/books/v1/volumes?q=intitle:{title}"
