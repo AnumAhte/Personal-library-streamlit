@@ -2,6 +2,16 @@ import json
 import os
 import requests
 import streamlit as st
+from dotenv import load_dotenv
+
+# 📌 Load environment variables
+load_dotenv()  # .env file se variables load karega
+
+# 📌 API Key ko environment variable se load karein
+API_KEY = os.getenv("API_KEY")
+
+if not API_KEY:
+    st.error("⚠ API Key is missing! Please set it in your .env file or Streamlit secrets.")
 
 # 📌 Load Library from File
 def load_library(filename="library.txt"):
@@ -18,10 +28,12 @@ def save_library(library, filename="library.txt"):
         json.dump(library, file, indent=4)
 
 # 📌 Fetch Book Summary from Google Books API
-API_KEY ="AIzaSyBSnslPjnoz-Yd0kiNpmPP4CrP_WsqdeU0"
 def get_book_summary(title):
     """Fetch a book summary using Google Books API."""
-    url = f"https://www.googleapis.com/books/v1/volumes?q=intitle:{title}"
+    if not API_KEY:
+        return "❌ API Key not found! Please set it in your environment variables."
+
+    url = f"https://www.googleapis.com/books/v1/volumes?q=intitle:{title}&key={API_KEY}"
     try:
         response = requests.get(url)
         data = response.json()
